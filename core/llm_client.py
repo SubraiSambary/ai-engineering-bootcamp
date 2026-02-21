@@ -1,0 +1,41 @@
+import os
+import json
+from dotenv import load_dotenv
+from openai import OpenAI
+
+load_dotenv()
+
+client = OpenAI(
+    base_url="https://api.groq.com/openai/v1",
+    api_key=os.getenv("GROQ_API_KEY")
+    )
+
+def call_llm(messages, model="openai/gpt-oss-120b", temperature=0):
+    response = client.chat.completions.create(
+        model=model,
+        messages=messages,
+        temperature=temperature
+    )
+    return response.choices[0].message.content
+
+def call_llm_json(messages, max_retries=3):
+    """
+    Forces JSON output and retries if parsing fails.
+    """
+
+    system_message = {
+        "role": "system",
+        "content": "You must respond ONLY in valid JSON format."
+    }
+
+    messages = [system_message] + messages
+
+    for attempt in range(max_retries):
+        output = call_llm(messages)
+
+        try:
+            return json.loads(output)
+        except json.JSONDecodeError:
+            print(f"Attempt {attempt + 1} failed to parse JSON. Retrying...")
+
+    raise ValueError("LLM failed to return valid JSON")  

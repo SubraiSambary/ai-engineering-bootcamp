@@ -105,6 +105,30 @@ class BasicAgent:
                 self.memory.append(decision)
                 self.current_step += 1
 
+            elif decision["type"] == "tool":
+                tool_name = decision["tool_name"]
+                tool_input = decision["tool_input"]
+
+                tool = self.tool_registry.get_tool(tool_name)
+                if tool:
+                    print(f"Calling Tool: {tool_name} with input: {tool_input}")
+                    result = tool.run(tool_input)
+                    print(f"Tool Result: {result}")
+
+                    # Add structured observation to memory
+                    self.memory.append({
+                        "step"  : self.plan[self.current_step],
+                        "tool_called": tool_name,
+                        "tool_input": tool_input,
+                        "tool_output": result
+                    })
+                else:
+                    print(f"⚠ Tool '{tool_name}' not found in registry.")
+                    self.memory.append({
+                        "step": self.plan[self.current_step],
+                        "error": f"Tool '{tool_name}' not found"
+                    })
+
             elif decision["type"] == "final":
                 print("Final Answer:")
                 print(decision["final_answer"])

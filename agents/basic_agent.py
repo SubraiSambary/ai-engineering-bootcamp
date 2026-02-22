@@ -39,12 +39,27 @@ class BasicAgent:
 
                 {step}
 
-                Return ONLY valid JSON:
+                You may either:
 
+                1. Execute reasoning directly, OR
+                2. Use an available tool if needed.
+
+                Available Tools
+                {self.tool_registry.list_tools()}
+
+                Return ONLY valid JSON in one of the following formats:
+
+                1. Execution:
                 {{
                     "type": "execution",
-                    "result": "result of executing this step",
-                    "final_answer": null
+                    "result": "result of executing this step"
+                }}
+
+                2. Tool:
+                {{
+                    "type": "tool",
+                    "tool_name": "name_of_tool",
+                    "tool_input": "input_for_tool"
                 }}
                 """
             else:

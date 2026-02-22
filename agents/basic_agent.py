@@ -47,19 +47,20 @@ class BasicAgent:
                 Available Tools
                 {self.tool_registry.list_tools()}
 
-                Return ONLY valid JSON in one of the following formats:
+                Return ONLY valid JSON:
 
-                1. Execution:
-                {{
-                    "type": "execution",
-                    "result": "result of executing this step"
-                }}
-
-                2. Tool:
+                If you need to use a Tool:
                 {{
                     "type": "tool",
-                    "tool_name": "name_of_tool",
-                    "tool_input": "input_for_tool"
+                    "tool_name": "<name of the tool to use>",
+                    "tool_input": "<input to the tool>"
+                }}
+
+                If you can execute reasoning directly:
+                {{
+                    "type": "execution",
+                    "result": "<your reasoning output for this step>",
+                    "final_answer": null
                 }}
                 """
             else:
@@ -107,27 +108,25 @@ class BasicAgent:
 
             elif decision["type"] == "tool":
                 tool_name = decision["tool_name"]
-                tool_input = decision["tool_input"]
+                tool_input = decision["input"]
+                print(f"Calling Tool: {tool_name} with input: {tool_input}")
 
                 tool = self.tool_registry.get_tool(tool_name)
                 if tool:
-                    print(f"Calling Tool: {tool_name} with input: {tool_input}")
                     result = tool.run(tool_input)
                     print(f"Tool Result: {result}")
 
                     # Add structured observation to memory
                     self.memory.append({
-                        "step"  : self.plan[self.current_step],
-                        "tool_called": tool_name,
-                        "tool_input": tool_input,
-                        "tool_output": result
+                        "type": "tool_result",
+                        "tool": tool_name,
+                        "input": tool_input,
+                        "result": result
                     })
                 else:
                     print(f"⚠ Tool '{tool_name}' not found in registry.")
-                    self.memory.append({
-                        "step": self.plan[self.current_step],
-                        "error": f"Tool '{tool_name}' not found"
-                    })
+
+                self.current_step += 1
 
             elif decision["type"] == "final":
                 print("Final Answer:")

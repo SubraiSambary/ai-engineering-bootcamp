@@ -14,6 +14,13 @@ client = OpenAI(
 def clean_json_output(output: str):
     """ Removes markdown code blocks if present. """
     output=re.sub(r"```json|```","", output)
+    output=re.sub(r"```","", output)
+
+    #Extract first JSON object from the output
+    match=re.search(r"\{.*\}", output, re.DOTALL)
+    if match:
+        return match.group(0)
+
     return output.strip()
 
 def call_llm(messages, model="openai/gpt-oss-120b", temperature=0):
@@ -31,18 +38,20 @@ def call_llm_json(messages, max_retries=3):
 
     system_message = {
         "role": "system",
-        "content": "You must respond ONLY in valid JSON format."
+        "content": "You must respond ONLY in valid JSON format. No Markdown"
     }
 
     messages = [system_message] + messages
 
     for attempt in range(max_retries):
-        output = call_llm(messages)
-        output = clean_json_output(output)
-
         try:
-            return json.loads(output)
-        except json.JSONDecodeError:
-            print(f"Attempt {attempt + 1} failed to parse JSON. Retrying...")
+            output = call_llm(messages)
 
-    raise ValueError("LLM failed to return valid JSON")  
+            print("\n---Raw LLM Output---",output)
+            cleaned =clean_json_output(output)
+
+            return json.loads(cleaned)
+        except Exception as e:
+            print(f"\nAttempt {attempt+1} failed to parse JSON. Retrying... Error: {e}")
+
+    raise ValueError("LLM failed to return valid JSON after retries")  

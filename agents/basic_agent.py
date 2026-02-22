@@ -1,5 +1,6 @@
 import json
 from core.llm_client import call_llm_json
+from tools.tool_registry import ToolRegistry
 
 class BasicAgent:
 
@@ -10,6 +11,7 @@ class BasicAgent:
         self.plan_generated = False
         self.plan = []
         self.current_step = 0
+        self .tool_registry = ToolRegistry()
 
     def think(self):
         if not self.plan_generated:

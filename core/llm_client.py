@@ -1,4 +1,5 @@
 import os
+import re
 import json
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -9,6 +10,11 @@ client = OpenAI(
     base_url="https://api.groq.com/openai/v1",
     api_key=os.getenv("GROQ_API_KEY")
     )
+
+def clean_json_output(output: str):
+    """ Removes markdown code blocks if present. """
+    output=re.sub(r"```json|```","", output)
+    return output.strip()
 
 def call_llm(messages, model="openai/gpt-oss-120b", temperature=0):
     response = client.chat.completions.create(
@@ -32,6 +38,7 @@ def call_llm_json(messages, max_retries=3):
 
     for attempt in range(max_retries):
         output = call_llm(messages)
+        output = clean_json_output(output)
 
         try:
             return json.loads(output)

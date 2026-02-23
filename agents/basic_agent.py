@@ -14,121 +14,65 @@ class BasicAgent:
         self .tool_registry = ToolRegistry()
 
     def think(self):
-        if not self.plan_generated:
-            prompt= f""" 
-            You are an AI planning agent.
+        prompt = f""" 
+        You are a ReAct agent.
+        You can think step-by-step.
+        You can use tools when needed.
 
-            Goal:
-            {self.goal}
+        Available tools:
+        - calculator: use for ANY math calculation
 
-            Generate a step-by-step plan to achieve this goal. (3-5 steps)
+        Your goal: {self.goal}
+        Your previous steps: {self.memory}
 
-            Return ONLY valid JSON:
+        Return only VALID JSON in one of these formats:
+        If Reasoning:
+        {{
+            "type": "thought",
+            "content": "your reasoning here"
+        }}
 
-            {{
-                "type": "plan",
-                "steps": ["step 1", "step 2", "step 3"]
-            }}
-            """
-        else:
-            if self.current_step < len(self.plan):
-                step = self.plan[self.current_step]
-
-                prompt = f"""
-                You are executing this plan step:
-
-                {step}
-
-                You may either:
-
-                1. Execute reasoning directly, OR
-                2. Use an available tool if needed.
-
-                Available Tools
-                {self.tool_registry.list_tools()}
-
-                Return ONLY valid JSON:
-
-                If you need to use a Tool:
-                {{
-                    "type": "tool",
-                    "tool_name": "<name of the tool to use>",
-                    "tool_input": "<input to the tool>"
-                }}
-
-                If you can execute reasoning directly:
-                {{
-                    "type": "execution",
-                    "result": "<your reasoning output for this step>",
-                    "final_answer": null
-                }}
-                """
-            else:
-                prompt= f"""
-                All steps are completed.
-
-                Here are the completed steps:
-                {self.memory}
-                
-                Now generate a final consolidated answer for the user's goal:
-                "{self.goal}"
-
-                Return ONLY valid JSON:
-                {{
-                    "type": "final",
-                    "final_answer": "<your detailed final answer here>"
-                }}
-                """
-        messages = [{"role": "user", "content": prompt}]
-        return call_llm_json(messages)
+        If using a tool:
+        {{
+            "type": "tool",
+            "tool_name": "calculator",
+            "input": "<math expression>"
+        }}  
+        if you have a final answer:
+        {{
+            "type": "final",
+            "final_answer": "your final answer here"
+        }}
+        """
+        messages = {"role": "user", "content": prompt}
+        return call_llm_json(prompt)
     
     def run(self, max_iterations=10):
         
         for i in range(max_iterations):
-            print(f"\n--- Iteration {i+1} ---")
+            print(f"Interation {i+1}")
 
             decision = self.think()
 
-            if not isinstance(decision, dict):
-                print("⚠ Invalid decision format:", decision)
+            if isinstance(decision, dict):
+                print("Invalid Response: ",decision)
                 break
 
-            if decision["type"] == "plan":
-                self.plan = decision["steps"]
-                self.plan_generated = True
-                print("Generated Plan:")
-                for idx, step in enumerate(self.plan):
-                    print(f"{idx}. {step}")
-
-            elif decision["type"] == "execution":
-                print(f"Executing Step: {self.plan[self.current_step]}")
-                print(f"Result: {decision['result']}")
-                self.memory.append(decision)
-                self.current_step += 1
-
-            elif decision["type"] == "tool":
+            if decision["type"] == "thought":
+                print("Thought: ", decision["content"])
+                self.memory.append({"type": "thought", "content": decision["content"]})
+            
+            elif decision["type"] == "action":
                 tool_name = decision["tool_name"]
                 tool_input = decision["input"]
-                print(f"Calling Tool: {tool_name} with input: {tool_input}")
-
+                print(f"Action: {tool_name}({tool_input})")
                 tool = self.tool_registry.get_tool(tool_name)
+
                 if tool:
                     result = tool.run(tool_input)
-                    print(f"Tool Result: {result}")
-
-                    # Add structured observation to memory
+                    print(f"Observations: {result}")
                     self.memory.append({
-                        "type": "tool_result",
-                        "tool": tool_name,
-                        "input": tool_input,
-                        "result": result
-                    })
-                else:
-                    print(f"⚠ Tool '{tool_name}' not found in registry.")
-
-                self.current_step += 1
-
-            elif decision["type"] == "final":
-                print("Final Answer:")
-                print(decision["final_answer"])
-                break
+                        "type": "action", 
+                        "tool": tool_name, 
+                        "input": tool_input
+                        })
